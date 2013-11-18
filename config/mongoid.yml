@@ -1,0 +1,6 @@
+development:
+  sessions:
+    default:
+      database: quizmaster
+      hosts:
+        - localhost:27017
