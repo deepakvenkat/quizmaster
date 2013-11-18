@@ -3,24 +3,28 @@ require 'sinatra'
 require 'json'
 require 'unirest'
 require 'mongoid'
+require 'sinatra/config_file'
+require 'yaml'
+# require 'mongoid-autoinc'
 
 configure do
   Mongoid.load!("./config/mongoid.yml")
 end
-questions = [];
 
+db = Mongoid::Sessions.default
+
+config_file 'config/keys.yml'
+
+########Routes#########
 get '/' do
   content_type :json
   {message: "Hello World"}.to_json
 end
 
 get '/question' do
-  response = Unirest::get "https://privnio-trivia.p.mashape.com/exec?v=1&method=getQuestions",
-  headers: {
-    "X-Mashape-Authorization" => "i7aV09XHCQCGH4pUNryAatVwMrlJaI3o"
-  }
+  response = QuestionStore.get_question
   content_type :json
-  {questions: response.body}.to_json
+  {questions: response}.to_json
 end
 
 get '/user/:username' do
@@ -29,10 +33,53 @@ get '/user/:username' do
   {user: user.username, score: user.score}.to_json
 end
 
+#######Models#############
 class User
   include Mongoid::Document
   field :username, type: String
   field :score, type: Integer, default: 0
   field :group, type: String
   validates_uniqueness_of :username
+end
+
+class Question
+  include Mongoid::Document
+  field :question, type: String
+  field :answer, type: String
+  field :uid, type: String
+  field :current, type: Boolean
+  validates_uniqueness_of :uid
+  # increments :uid, seed: 1000
+end
+
+class QuestionStore
+  include Mongoid::Document
+  def self.get_question
+    questions = QuestionStore.where(used: false).first
+    if questions.nil? || questions.result.length == 0
+      questions = retrieve_questions
+    end
+    update_question_store
+    return questions["result"][0]
+  end
+
+  def self.retrieve_questions
+    mashape = YAML.load_file('config/keys.yml')["mashape"]
+
+    response = Unirest::get(mashape["url"],
+      headers: {
+        "X-Mashape-Authorization" => mashape["authorization"]
+      }
+    )
+    if response.code == 200
+      questions = response.body
+      questions["used"] = false
+      QuestionStore.collection.insert(questions)
+      return response.body
+    end
+  end
+
+  def self.update_question_store
+    return
+  end
 end

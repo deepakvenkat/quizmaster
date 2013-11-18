@@ -7,6 +7,7 @@ gem "rerun"
 gem 'rb-fsevent', '~> 0.9.1'
 
 gem "mongoid"
+gem 'mongoid-autoinc'
 
 gem 'bson_ext'
 gem 'slim'
