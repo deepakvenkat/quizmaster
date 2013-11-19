@@ -5,7 +5,7 @@ require 'unirest'
 require 'mongoid'
 require 'sinatra/config_file'
 require 'yaml'
-# require 'mongoid-autoinc'
+require 'autoinc'
 
 configure do
   Mongoid.load!("./config/mongoid.yml")
@@ -33,6 +33,9 @@ get '/user/:username' do
   {user: user.username, score: user.score}.to_json
 end
 
+post '/answer' do
+end
+
 #######Models#############
 class User
   include Mongoid::Document
@@ -44,12 +47,13 @@ end
 
 class Question
   include Mongoid::Document
+  include Mongoid::Autoinc
   field :question, type: String
   field :answer, type: String
   field :uid, type: String
-  field :current, type: Boolean
+  field :current, type: Boolean, default: true
   validates_uniqueness_of :uid
-  # increments :uid, seed: 1000
+  increments :uid, seed: 1000
 end
 
 class QuestionStore
@@ -59,8 +63,9 @@ class QuestionStore
     if questions.nil? || questions.result.length == 0
       questions = retrieve_questions
     end
-    update_question_store
-    return questions["result"][0]
+    update_question_store(questions)
+    question = Question.create(questions["result"][0])
+    return question
   end
 
   def self.retrieve_questions
@@ -75,11 +80,16 @@ class QuestionStore
       questions = response.body
       questions["used"] = false
       QuestionStore.collection.insert(questions)
+      QuestionsDump.collection.insert(questions)
       return response.body
     end
   end
 
-  def self.update_question_store
+  def self.update_question_store(questions)
+
     return
   end
+end
+class QuestionsDump
+  include Mongoid::Document
 end
