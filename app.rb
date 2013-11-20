@@ -22,7 +22,7 @@ get '/' do
 end
 
 get '/question' do
-  response = QuestionStore.get_question
+  response = Question.get_question
   content_type :json
   {questions: response}.to_json
 end
@@ -50,10 +50,22 @@ class Question
   include Mongoid::Autoinc
   field :question, type: String
   field :answer, type: String
-  field :uid, type: String
+  field :uid, type: Integer
   field :current, type: Boolean, default: true
+  field :difficulty, type: Integer
+  field :category, type: String
+
   validates_uniqueness_of :uid
   increments :uid, seed: 1000
+
+  def self.get_question
+    question = Question.where(current: true).first
+    if question.nil?
+      question = QuestionStore.retrieve_questions()
+    end
+    Question.where(_id: question["_id"]).update({'$set'=>{current: false}})
+    return question
+  end
 end
 
 class QuestionStore
@@ -80,16 +92,15 @@ class QuestionStore
       questions = response.body
       questions["used"] = false
       QuestionStore.collection.insert(questions)
-      QuestionsDump.collection.insert(questions)
-      return response.body
+      update_questions(response.body["result"])
+      return Question.where({current: true})
     end
   end
 
-  def self.update_question_store(questions)
-
+  def self.update_questions(questions)
+    questions.each do |question|
+      Question.create(question)
+    end
     return
   end
-end
-class QuestionsDump
-  include Mongoid::Document
 end
