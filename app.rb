@@ -34,6 +34,20 @@ get '/user/:username' do
 end
 
 post '/answer' do
+  user = User.find_or_create_by(username: params[:username]);
+  question = Question.find_by(uid: params[:uid])
+  if question.nil? || !question["current"]
+    content_type :json
+    {error: {incorrect_question: "question not valid"}}.to_json
+  end
+  if question["answer"] == params[:answer]
+    user.inc(:score, 1)
+    question.update_attributes(current: false, answered_by: user.username)
+    content_type :json
+    {success: {correct_answer: "Corrent answer", user: user.username, socre: user.score}}
+  else
+    {error: {incorrect_answer: "incorrect answer"}}
+  end
 end
 
 #######Models#############
@@ -54,7 +68,7 @@ class Question
   field :current, type: Boolean, default: true
   field :difficulty, type: Integer
   field :category, type: String
-
+  field :answered_by, tyepe: String
   validates_uniqueness_of :uid
   increments :uid, seed: 1000
 
