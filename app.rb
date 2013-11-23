@@ -8,12 +8,15 @@ require 'yaml'
 require 'autoinc'
 
 configure do
+  config_file 'config/keys.yml'
   Mongoid.load!("./config/mongoid.yml")
 end
 
-db = Mongoid::Sessions.default
 
-config_file 'config/keys.yml'
+####HTTP Auth########
+use Rack::Auth::Basic, "Restricted Area" do |username, password|
+  username == settings.basic_auth["username"] && password == settings.basic_auth["password"]
+end
 
 ########Routes#########
 get '/' do
@@ -68,7 +71,7 @@ class Question
   field :current, type: Boolean, default: true
   field :difficulty, type: Integer
   field :category, type: String
-  field :answered_by, tyepe: String
+  field :answered_by, type: String
   validates_uniqueness_of :uid
   increments :uid, seed: 1000
 
