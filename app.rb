@@ -36,6 +36,11 @@ get '/user/:username' do
   {user: user.username, score: user.score}.to_json
 end
 
+get '/scoreboard' do
+  users = User.all.desc(:score)
+  content_type :json
+  {users: users}
+end
 post '/answer' do
   user = User.find_or_create_by(username: params[:username]);
   question = Question.find_by(uid: params[:uid])
