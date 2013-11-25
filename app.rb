@@ -41,21 +41,11 @@ get '/scoreboard' do
   content_type :json
   {users: users}
 end
+
 post '/answer' do
-  user = User.find_or_create_by(username: params[:username]);
-  question = Question.find_by(uid: params[:uid])
-  if question.nil? || !question["current"]
-    content_type :json
-    {error: {incorrect_question: "question not valid"}}.to_json
-  end
-  if question["answer"] == params[:answer]
-    user.inc(:score, 1)
-    question.update_attributes(current: false, answered_by: user.username)
-    content_type :json
-    {success: {correct_answer: "Corrent answer", user: user.username, socre: user.score}}
-  else
-    {error: {incorrect_answer: "incorrect answer"}}
-  end
+  var answer = Answer.create_and_validate_answer(params)
+  content_type :json
+  {result: answer}
 end
 
 #######Models#############
@@ -76,7 +66,9 @@ class Question
   field :current, type: Boolean, default: true
   field :difficulty, type: Integer
   field :category, type: String
+  field :answered, type: Boolean, default: false
   field :answered_by, type: String
+
   validates_uniqueness_of :uid
   increments :uid, seed: 1000
 
@@ -124,5 +116,43 @@ class QuestionStore
       Question.create(question)
     end
     return
+  end
+end
+
+class Answer
+  include Mongoid::Document
+  def create_and_validate_answer(params)
+    answer = Answer.create(params)
+    question = Question.where(uid: params[:uid])
+    user = User.find_or_create_by(username: params[:username])
+    if question.nil? || question[:answered]
+      return {error: {invalid_question: "invalid question"}}
+    else
+      original_answer = question.answer
+      valid_answer = correct_answer?(correct_answer, params[:answer])
+      if valid
+        user.inc(:score, 1)
+        question.update_attributes(answered: true, answered_by: user.username)
+        return {correct_answer: "Correct Answer", user: user.username, score: user.score}
+      else
+        return {wrong_answer: "wrong answer", user: user.username}
+      end
+    end
+  end
+
+  def correct_answer?(original_answer, given_answer)
+    if original_answer.downcase == given_answer.downcase
+      return true
+    end
+    answer_parts = original_answer.split("/")
+    answer_parts.each do |part|
+      part = part.gsub(/[^\w\s]/, "")
+      valid = (part.downcase == given_answer.downcase) ||
+        part.downcase.include?(given_answer) ||
+        given_answer.downcase.include?(part)
+
+      return true if valid
+    end
+    return false
   end
 end
