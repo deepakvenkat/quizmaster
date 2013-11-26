@@ -42,6 +42,17 @@ get '/scoreboard' do
   {users: users}
 end
 
+get 'answer/:question_id' do
+  question = Question.where(uid: params[:question_id])
+  if question.nil?
+    content_type :json
+    {error: {invalid_question: "Invalid question"}}
+  else
+    content_type :json
+    {question: question[:question], answer: question[:answer]}
+  end
+end
+
 post '/answer' do
   var answer = Answer.create_and_validate_answer(params)
   content_type :json
